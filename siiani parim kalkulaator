@@ -1,0 +1,320 @@
+import tkinter as tk
+from tkinter import ttk
+from datetime import datetime
+
+class AutomaksKalkulaator:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Automaksu Kalkulaator")
+        self.root.configure(bg="#E6F0FA")
+
+        self.soiduki_tuubid = ["Sõiduauto", "Kaubik", "Mootorratas/ATV", "Maastikusõidukid", "Ratastraktorid"]
+        self.mootori_tuubid_sõiduauto = ["Bensiin", "Diisel", "Elektriline", "Hübriid", "Pistikhübriid"]
+        self.mootori_tuubid_kaubik = ["Bensiin", "Diisel", "Elektriline", "Hübriid"]
+        self.mootori_tuubid_muu = ["Bensiin", "Diisel", "Elektriline", "Hübriid"]
+        self.co2_standardid = ["WLTP", "NEDC", "Puudub"]
+
+        self.create_widgets()
+
+    def create_widgets(self):
+        ttk.Label(self.root, text="AUTOMAKSU KALKULAATOR", font=("Arial", 16, "bold"), background="#E6F0FA").pack(pady=10)
+
+        frame = ttk.Frame(self.root, padding=10)
+        frame.pack()
+
+        ttk.Label(frame, text="Vali sõiduki tüüp:", font=("Arial", 12, "bold")).grid(row=0, column=0, sticky="w")
+
+        self.soiduki_valik = tk.StringVar()
+        self.soiduki_valik.trace("w", self.update_mootorid)
+
+        for i, tuup in enumerate(self.soiduki_tuubid):
+            ttk.Radiobutton(frame, text=tuup, variable=self.soiduki_valik, value=tuup).grid(row=i + 1, column=0, sticky="w")
+
+        self.mootori_valik = tk.StringVar()
+        self.mootori_valik.trace("w", self.update_fields)
+
+        self.mootori_frame = ttk.Frame(self.root, padding=10)
+        self.mootori_frame.pack()
+
+        self.form_frame = ttk.Frame(self.root, padding=10)
+        self.form_frame.pack()
+
+        self.calculate_button = ttk.Button(self.root, text="Arvuta maks", command=self.calculate_tax)
+        self.calculate_button.pack(pady=10)
+
+        self.result_label = ttk.Label(self.root, text="", font=("Arial", 12, "bold"), background="#E6F0FA")
+        self.result_label.pack(pady=10)
+
+    def update_mootorid(self, *args):
+        for widget in self.mootori_frame.winfo_children():
+            widget.destroy()
+
+        if self.soiduki_valik.get() == "Sõiduauto":
+            ttk.Label(self.mootori_frame, text="Vali mootori tüüp:", font=("Arial", 12, "bold")).grid(row=0, column=0, sticky="w")
+            for i, mootor in enumerate(self.mootori_tuubid_sõiduauto):
+                ttk.Radiobutton(self.mootori_frame, text=mootor, variable=self.mootori_valik, value=mootor).grid(row=i + 1, column=0, sticky="w")
+        elif self.soiduki_valik.get() == "Kaubik":
+            ttk.Label(self.mootori_frame, text="Vali mootori tüüp:", font=("Arial", 12, "bold")).grid(row=0, column=0, sticky="w")
+            for i, mootor in enumerate(self.mootori_tuubid_kaubik):
+                ttk.Radiobutton(self.mootori_frame, text=mootor, variable=self.mootori_valik, value=mootor).grid(row=i + 1, column=0, sticky="w")
+        elif self.soiduki_valik.get() == "Mootorratas/ATV":
+            self.mootori_valik.set("")
+            self.update_fields()
+        elif self.soiduki_valik.get() in ["Maastikusõidukid", "Ratastraktorid"]:
+            self.mootori_valik.set("")
+            self.update_fields()
+
+    def update_fields(self, *args):
+        for widget in self.form_frame.winfo_children():
+            widget.destroy()
+
+        self.entries = {}
+        vehicle = self.soiduki_valik.get()
+
+        if not vehicle:
+            return
+
+        row = 0
+        ttk.Label(self.form_frame, text="Esmaregistreerimise aasta:", font=("Arial", 10)).grid(row=row, column=0, sticky="w", pady=2)
+        self.entries["Esmaregistreerimine"] = ttk.Entry(self.form_frame)
+        self.entries["Esmaregistreerimine"].grid(row=row, column=1, sticky="w", pady=2, padx=5)
+        row += 1
+
+        if vehicle == "Sõiduauto":
+            ttk.Label(self.form_frame, text="Täismass (kg):", font=("Arial", 10)).grid(row=row, column=0, sticky="w", pady=2)
+            self.entries["Täismass"] = ttk.Entry(self.form_frame)
+            self.entries["Täismass"].grid(row=row, column=1, sticky="w", pady=2, padx=5)
+            row += 1
+
+            if self.mootori_valik.get() in ["Bensiin", "Diisel", "Hübriid"]:
+                ttk.Label(self.form_frame, text="CO₂ heitkogus (g/km, WLTP):", font=("Arial", 10)).grid(row=row, column=0, sticky="w", pady=2)
+                self.entries["CO2"] = ttk.Entry(self.form_frame)
+                self.entries["CO2"].grid(row=row, column=1, sticky="w", pady=2, padx=5)
+                row += 1
+                
+        elif vehicle == "Kaubik":
+            if self.mootori_valik.get() in ["Bensiin", "Diisel", "Hübriid"]:
+                ttk.Label(self.form_frame, text="CO₂ heitkogus (g/km, WLTP):", font=("Arial", 10)).grid(row=row, column=0, sticky="w", pady=2)
+                self.entries["CO2"] = ttk.Entry(self.form_frame)
+                self.entries["CO2"].grid(row=row, column=1, sticky="w", pady=2, padx=5)
+                row += 1
+
+        elif vehicle == "Mootorratas/ATV":
+            ttk.Label(self.form_frame, text="Töömaht (cm³):", font=("Arial", 10)).grid(row=row, column=0, sticky="w", pady=2)
+            self.entries["CM3"] = ttk.Entry(self.form_frame)
+            self.entries["CM3"].grid(row=row, column=1, sticky="w", pady=2, padx=5)
+            row += 1
+            
+        elif vehicle in ["Maastikusõidukid", "Ratastraktorid"]:
+            ttk.Label(self.form_frame, text="Töömaht (cm³):", font=("Arial", 10)).grid(row=row, column=0, sticky="w", pady=2)
+            self.entries["CM3"] = ttk.Entry(self.form_frame)
+            self.entries["CM3"].grid(row=row, column=1, sticky="w", pady=2, padx=5)
+            row += 1
+            
+            ttk.Label(self.form_frame, text="Tühimass (kg):", font=("Arial", 10)).grid(row=row, column=0, sticky="w", pady=2)
+            self.entries["Tühimass"] = ttk.Entry(self.form_frame)
+            self.entries["Tühimass"].grid(row=row, column=1, sticky="w", pady=2, padx=5)
+            row += 1
+
+    def calculate_tax(self):
+        try:
+            vehicle = self.soiduki_valik.get()
+            mootori_tuup = self.mootori_valik.get()
+            reg_year = int(self.entries["Esmaregistreerimine"].get())
+            current_year = datetime.now().year
+            age = current_year - reg_year
+            total_tax = 0
+
+            if mootori_tuup in ["Bensiin", "Diisel", "Hübriid"]:
+                if vehicle == "Sõiduauto":
+                    mass = float(self.entries["Täismass"].get())
+                    co2_value = float(self.entries["CO2"].get())
+
+                    if co2_value <= 117:
+                        co2_tax = 0
+                    elif 118 <= co2_value <= 150:
+                        co2_tax = (co2_value - 117) * 3
+                    elif 151 <= co2_value <= 200:
+                        co2_tax = (co2_value - 150) * 3.5 + (150 - 117) * 3
+                    else:
+                        co2_tax = (co2_value - 200) * 4 + (200 - 150) * 3.5 + (150 - 117) * 3
+
+                    if mass > 2000:
+                        mass_tax = (mass - 2000) * 0.40
+                        if mass > 3000:
+                            mass_tax = 400
+                    else:
+                        mass_tax = 0
+
+                    total_tax = co2_tax + mass_tax
+
+            if mootori_tuup in ["Bensiin", "Diisel", "Hübriid"]:
+                if vehicle == "Kaubik":
+                    co2_value = float(self.entries["CO2"].get())
+                    if co2_value <= 204:
+                        co2_tax = 0
+                    elif 205 <= co2_value <= 250:
+                        co2_tax = (co2_value - 204) * 3
+                    elif 251 <= co2_value <= 300:
+                        co2_tax = (co2_value - 250) * 3.5 + (250 - 204) * 3
+                    else:
+                        co2_tax = (co2_value - 300) * 4 + (300 - 250) * 3.5 + (250 - 204) * 3
+                    total_tax = co2_tax
+
+            if mootori_tuup == "Elektriline":
+                if vehicle == "Sõiduauto":
+                    mass = float(self.entries["Täismass"].get())
+                    if mass > 2400:
+                        mass_tax = (mass - 2400) * 0.40
+                        if mass > 3500:
+                            mass_tax = 440
+                    else:
+                        mass_tax = 0
+                    total_tax = mass_tax
+
+            if mootori_tuup == "Pistikhübriid":
+                if vehicle == "Sõiduauto":
+                    mass = float(self.entries["Täismass"].get())
+                    co2_value = float(self.entries["CO2"].get())
+
+                    if co2_value <= 117:
+                        co2_tax = 0
+                    elif 118 <= co2_value <= 150:
+                        co2_tax = (co2_value - 117) * 3
+                    elif 151 <= co2_value <= 200:
+                        co2_tax = (co2_value - 150) * 3.5 + (150 - 117) * 3
+                    else:
+                        co2_tax = (co2_value - 200) * 4 + (200 - 150) * 3.5 + (150 - 117) * 3
+
+                    if mass > 2200:
+                        mass_tax = (mass - 2200) * 0.40
+                        if mass > 3500:
+                            mass_tax = 440
+                    else:
+                        mass_tax = 0
+
+                    total_tax = mass_tax
+
+            # "Mootorratas/ATV" tax calculation
+            if vehicle == "Mootorratas/ATV":
+                cm3_value = float(self.entries["CM3"].get())
+                if age <= 10:
+                    if cm3_value <= 51:
+                        total_tax = 0
+                    elif cm3_value <= 125:
+                        total_tax = 30
+                    elif cm3_value <= 500:
+                        total_tax = 45
+                    elif cm3_value <= 1000:
+                        total_tax = 60
+                    elif cm3_value <= 1500:
+                        total_tax = 75
+                    else:
+                        total_tax = 90
+                elif age <= 20:
+                    if cm3_value <= 126:
+                        total_tax = 0
+                    elif cm3_value <= 500:
+                        total_tax = 30
+                    elif cm3_value <= 1000:
+                        total_tax = 45
+                    elif cm3_value <= 1500:
+                        total_tax = 60
+                    else:
+                        total_tax = 75
+                else:
+                    total_tax = 0
+                
+            if vehicle in ["Maastikusõidukid", "Ratastraktorid"]:
+                cm3_value = float(self.entries["CM3"].get())
+                mass = float(self.entries["Tühimass"].get())
+                
+                if mass > 1000:
+                    if age <= 10:
+                        if cm3_value <= 51:
+                            total_tax = 0
+                        elif cm3_value <= 125:
+                            total_tax = 30
+                        elif cm3_value <= 500:
+                            total_tax = 45
+                        elif cm3_value <= 1000:
+                            total_tax = 60
+                        elif cm3_value <= 1500:
+                            total_tax = 75
+                        else:
+                            total_tax = 90
+                    elif age <= 20:
+                        if cm3_value <= 126:
+                            total_tax = 0
+                        elif cm3_value <= 500:
+                            total_tax = 30
+                        elif cm3_value <= 1000:
+                            total_tax = 45
+                        elif cm3_value <= 1500:
+                            total_tax = 60
+                        else:
+                            total_tax = 75
+                    else:
+                        total_tax = 0
+                else:
+                    total_tax = 0
+                    
+            if mootori_tuup in ["Bensiin", "Diisel", "Hübriid", "Pistikhübriid"]:
+                if vehicle == "Sõiduauto":
+                    age_multiplier = self.calculate_age_multiplier(age)
+                    total_tax *= age_multiplier
+                    total_tax += 50
+                    
+                if vehicle == "Kaubik":
+                    age_multiplier = self.calculate_age_multiplier(age)
+                    total_tax *= age_multiplier
+                    total_tax += 50
+                
+            if mootori_tuup == "Elektriline":
+                if vehicle == "Sõiduauto":
+                    age_multiplier = self.calculate_age_multiplier(age)
+                    total_tax *= age_multiplier
+                    total_tax += 50
+                    
+            if mootori_tuup == "Elektriline":
+                if vehicle =="Kaubik" :
+                    total_tax += 30
+
+            self.result_label.config(text=f"Arvutatud maksumus: {total_tax:.2f} €")
+        except Exception as e:
+            self.result_label.config(text=f"Tekkis viga: {e}")
+
+    def calculate_age_multiplier(self, age):
+        if age >= 20:
+            return 0.00
+        elif age >= 16:
+            return 0.10
+        elif age >= 15:
+            return 0.18
+        elif age >= 14:
+            return 0.26
+        elif age >= 13:
+            return 0.35
+        elif age >= 12:
+            return 0.43
+        elif age >= 11:
+            return 0.51
+        elif age >= 10:
+            return 0.59
+        elif age >= 9:
+            return 0.67
+        elif age >= 8:
+            return 0.75
+        elif age >= 7:
+            return 0.84
+        elif age >= 6:
+            return 0.92
+        else:
+            return 1
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = AutomaksKalkulaator(root)
+    root.mainloop()
+
